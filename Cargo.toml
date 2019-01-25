@@ -1,0 +1,10 @@
+[package]
+name = "retrosheet-loader"
+version = "0.1.0"
+authors = ["Rob Rowe <robrowe04@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+csv = "1.0.5"
+# retrosheet = "0.2.0"
+# retrosheet = { path = "../retrosheet-rs" }
