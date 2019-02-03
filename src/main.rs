@@ -6,7 +6,10 @@ use std::time::Duration;
 use std::sync::{mpsc, Arc, Mutex};
 use csv::{ReaderBuilder, StringRecord};
 
-use retrosheet_loader::game::Game;
+use retrosheet_loader::game::{
+    Game,
+    play::Play,
+};
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -29,7 +32,7 @@ fn main() {
     }
     drop(parser_tx);
     
-    let _ = db_storer(Arc::new(Mutex::new(parser_rx))).join();
+    let _ = store_game(Arc::new(Mutex::new(parser_rx))).join();
 }
 
 fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
@@ -41,9 +44,9 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
             .flexible(true)
             .from_reader(buf_reader);
 
-        let mut raw_game: Vec<StringRecord> = Vec::new();
+        //let mut raw_game: Vec<StringRecord> = Vec::new();
         let mut game: Game = Game::default();
-        let mut game_log_idx: usize = 0;
+        let mut game_log_idx: u16 = 0;
         for result in rdr.records() {
             // The iterator yields Result<StringRecord, Error>, so we check the
             // error here.
@@ -51,46 +54,48 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
             let record_type = &record[0];
             match record_type {
                 "id"  => {
-                    if record_type == "id" {
-                        if raw_game.len() > 0 {
-                            let game = Game::new(raw_game.clone());
-                            let send_err = dbtx.send(game.clone());
-                            if let Err(e) = send_err {
-                                eprintln!("ERROR: {:?}", e);
-                            }
-                            raw_game.clear();
-                            game_log_idx = 0;
+                    if game.id != ""  {
+                        let send_err = dbtx.send(game.clone());
+                        if let Err(e) = send_err {
+                            eprintln!("ERROR: {:?}", e);
                         }
+                        game_log_idx = 0;
+                        game = Game::default();
                     }
+                    game.id = record[1].to_string();
                 },
-                "info" => {
-                    println!("info: {:?}", record.clone());
-                },
-                "start" =>{
-                    println!("start: {:?}", record.clone());
-                },
+                "info" => game.add_info(record[1].to_string(), record[2].to_string() ),
+                "start" => game.add_starter(record),
                 "play" => {
-                    println!("({}) play: {:?}", game_log_idx, record.clone());
+                    game.add_play(record, game_log_idx);
                     game_log_idx = game_log_idx +1;
                 },
                 "sub" => {
-                    println!("({}) sub: {:?}", game_log_idx, record.clone());
+                    game.add_sub(record, game_log_idx);
                     game_log_idx = game_log_idx +1;
-                }
+                },
+                "com" => {
+                    game.add_com(record, game_log_idx);
+                    game_log_idx = game_log_idx + 1;
+                },
+                "data" => game.add_earned_run_entry(record),
                 _ =>(),
             };
+        }
 
-            raw_game.push(record.clone());
+        let send_err = dbtx.send(game.clone());
+        if let Err(e) = send_err {
+            eprintln!("ERROR: {:?}", e);
         }
         drop(dbtx);
         println!("at the end of the loop");
     });
 }
 
-fn db_storer(rx: Arc<Mutex<mpsc::Receiver<Game>>>) -> thread::JoinHandle<()> {
+fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
         for v in rx.lock().unwrap().iter() {
-             println!("db_storer got: {:?}", v);
+             println!("store_game got: {:#?}\n", v);
         }
     })
 }
