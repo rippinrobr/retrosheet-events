@@ -6,5 +6,5 @@ edition = "2018"
 
 [dependencies]
 csv = "1.0.5"
-# retrosheet = "0.2.0"
+mongodb = "0.3.12"
 # retrosheet = { path = "../retrosheet-rs" }
