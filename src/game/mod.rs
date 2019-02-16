@@ -33,6 +33,7 @@ impl Game {
     pub fn add_earned_run_entry(&mut self, record: StringRecord) {
         self.data.push(EarnedRunEntry::new(record))
     }
+
     pub fn add_info(&mut self, prop: String, val: String) {
         self.info.insert(prop, val);
     }
