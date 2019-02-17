@@ -45,5 +45,4 @@ impl Game {
     }
 
     pub fn add_sub(&mut self, record: StringRecord, idx: u16) { self.subs.push( Sub::new(record, idx)); }
-
 }

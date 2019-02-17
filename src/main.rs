@@ -5,6 +5,8 @@ use std::thread;
 use std::time::Duration;
 use std::sync::{mpsc, Arc, Mutex};
 use csv::{ReaderBuilder, StringRecord};
+use dotenv::dotenv;
+use std::env;
 
 use retrosheet_loader::game::{
     Game,
@@ -51,7 +53,7 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
             .flexible(true)
             .from_reader(buf_reader);
 
-        let mut game: Game = Game::default();
+        let mut retro_game: Game = Game::default();
         let mut game_log_idx: u16 = 0;
 
         for result in rdr.records() {
@@ -59,36 +61,36 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
             let record_type = &record[0];
             match record_type {
                 "id"  => {
-                    if game.id != ""  {
-                        let send_err = dbtx.send(game.clone());
+                    if retro_game.id != ""  {
+                        let send_err = dbtx.send(retro_game.clone());
                         if let Err(e) = send_err {
                             eprintln!("ERROR: {:?}", e);
                         }
                         game_log_idx = 0;
-                        game = Game::default();
+                        retro_game = Game::default();
                     }
-                    game.id = record[1].to_string();
+                    retro_game.id = record[1].to_string();
                 },
-                "info" => game.add_info(record[1].to_string(), record[2].to_string() ),
-                "start" => game.add_starter(record),
+                "info" => retro_game.add_info(record[1].to_string(), record[2].to_string() ),
+                "start" => retro_game.add_starter(record),
                 "play" => {
-                    game.add_play(record, game_log_idx);
+                    retro_game.add_play(record, game_log_idx);
                     game_log_idx = game_log_idx +1;
                 },
                 "sub" => {
-                    game.add_sub(record, game_log_idx);
+                    retro_game.add_sub(record, game_log_idx);
                     game_log_idx = game_log_idx +1;
                 },
                 "com" => {
-                    game.add_com(record, game_log_idx);
+                    retro_game.add_com(record, game_log_idx);
                     game_log_idx = game_log_idx + 1;
                 },
-                "data" => game.add_earned_run_entry(record),
+                "data" => retro_game.add_earned_run_entry(record),
                 _ =>(),
             };
         }
 
-        let send_err = dbtx.send(game.clone());
+        let send_err = dbtx.send(retro_game.clone());
         if let Err(e) = send_err {
             eprintln!("ERROR: {:?}", e);
         }
