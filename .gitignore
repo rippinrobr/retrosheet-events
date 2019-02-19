@@ -2,3 +2,5 @@
 **/*.rs.bk
 .idea/
 out.txt
+clippy.txt
+.env

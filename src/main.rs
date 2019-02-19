@@ -1,3 +1,4 @@
+use std::env;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
@@ -6,8 +7,9 @@ use std::time::Duration;
 use std::sync::{mpsc, Arc, Mutex};
 use csv::{ReaderBuilder, StringRecord};
 use dotenv::dotenv;
-use std::env;
-
+use postgres::{Connection,TlsMode};
+use retrosheet_loader::datastore::Repository;
+use retrosheet_loader::datastore::postgres::Postgres;
 use retrosheet_loader::game::{
     Game,
     play::Play,
@@ -15,7 +17,6 @@ use retrosheet_loader::game::{
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-
     // need to have at least one file
     if args.len() < 2 {
         eprintln!("path to Retrosheet event file is missing");
@@ -26,7 +27,7 @@ fn main() {
     // soon you'll be able to process more than one file, perhaps comma delimited
     // paths, globs, or by directory. I'm not sure yet
     // let files = vec![args[1].clone()];
-    let files = args[1].split(",");
+    let files = args[1].split(',');
     // Sets up the channels that are used for sending parsed Game objects to from
     // the parser to the function responsible for storing the data in a database
     let (parser_tx, parser_rx) = mpsc::channel();
@@ -54,6 +55,7 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
             .from_reader(buf_reader);
 
         let mut retro_game: Game = Game::default();
+        retro_game.set_default_info();
         let mut game_log_idx: u16 = 0;
 
         for result in rdr.records() {
@@ -68,6 +70,7 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
                         }
                         game_log_idx = 0;
                         retro_game = Game::default();
+                        retro_game.set_default_info();
                     }
                     retro_game.id = record[1].to_string();
                 },
@@ -75,15 +78,15 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
                 "start" => retro_game.add_starter(record),
                 "play" => {
                     retro_game.add_play(record, game_log_idx);
-                    game_log_idx = game_log_idx +1;
+                    game_log_idx += 1;
                 },
                 "sub" => {
                     retro_game.add_sub(record, game_log_idx);
-                    game_log_idx = game_log_idx +1;
+                    game_log_idx += 1;
                 },
                 "com" => {
                     retro_game.add_com(record, game_log_idx);
-                    game_log_idx = game_log_idx + 1;
+                    game_log_idx += 1;
                 },
                 "data" => retro_game.add_earned_run_entry(record),
                 _ =>(),
@@ -101,8 +104,16 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
 
 fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>) -> thread::JoinHandle<()> {
     thread::spawn(move || {
-        for v in rx.lock().unwrap().iter() {
-            println!("store_game got: {:#?}\n", v);
+        let pg_conn = Connection::connect("postgres://baseball:itsmerob@localhost/retrosheet_events", TlsMode::None).unwrap();
+        let pg_repo = Postgres::new(pg_conn);
+
+        for g in rx.lock().unwrap().iter() {
+            println!("store_game got: {:#?}\n", g);
+            match pg_repo.save_game(g.clone()) {
+                    Err(e) => eprintln!("{}",e),
+                    Ok(_) => println!("do something here, like update a progress bar"),
+                }
+
         }
     })
 }
