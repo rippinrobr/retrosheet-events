@@ -23,6 +23,9 @@ fn main() {
         std::process::exit(1);
     }
 
+    dotenv().ok();
+    let pg_conn_str = env::var("PG_DATABASE_URL")
+        .expect("DATABASE_URL must be set");
     // an array of file paths to parse, currently only accepting a single path
     // soon you'll be able to process more than one file, perhaps comma delimited
     // paths, globs, or by directory. I'm not sure yet
@@ -42,7 +45,7 @@ fn main() {
 
     // the store_game function is on its own thread listening for Game objects being sent to
     // it from the parser function
-    let _ = store_game(Arc::new(Mutex::new(parser_rx))).join();
+    let _ = store_game(Arc::new(Mutex::new(parser_rx)), pg_conn_str.clone()).join();
 }
 
 fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
@@ -98,17 +101,15 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
             eprintln!("ERROR: {:?}", e);
         }
         drop(dbtx);
-        println!("at the end of the loop");
     });
 }
 
-fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>) -> thread::JoinHandle<()> {
+fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>, pg_conn_str: String) -> thread::JoinHandle<()> {
     thread::spawn(move || {
-        let pg_conn = Connection::connect("postgres://baseball:itsmerob@localhost/retrosheet_events", TlsMode::None).unwrap();
+        let pg_conn = Connection::connect(pg_conn_str, TlsMode::None).unwrap();
         let pg_repo = Postgres::new(pg_conn);
 
         for g in rx.lock().unwrap().iter() {
-            println!("store_game got: {:#?}\n", g);
             match pg_repo.save_game(g.clone()) {
                     Err(e) => eprintln!("{}",e),
                     Ok(_) => println!("do something here, like update a progress bar"),
