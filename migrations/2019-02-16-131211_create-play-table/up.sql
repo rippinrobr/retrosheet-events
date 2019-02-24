@@ -6,6 +6,6 @@ CREATE TABLE plays (
         player_id character(8) NOT NULL,
         count character varying(16) NOT NULL,
         pitches character varying(32) NOT NULL,
-        event character varying(32) NOT NULL,
+        event character varying(64) NOT NULL,
         PRIMARY KEY (game_id, idx)
       );

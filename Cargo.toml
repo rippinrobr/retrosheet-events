@@ -8,6 +8,8 @@ edition = "2018"
 chrono = { version = "0.4", features = ["serde"] }
 csv = "1.0.5"
 dotenv = "0.13.0"
+exitcode = "1"
 failure = "0.1.3"
 failure_derive = "0.1.3"
 postgres = { version = "0.15.2", features= ["with-time"] }
+sqlite = "0.24.0"

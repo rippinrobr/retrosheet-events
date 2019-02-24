@@ -6,6 +6,6 @@ CREATE TABLE subs (
 	    name character varying(64) NOT NULL,
 	    team integer NOT NULL,
 	    batting_order integer NOT NULL,
-	    "position" integer NOT NULL,
+	    position integer NOT NULL,
 	    PRIMARY KEY (game_id, idx)
 );

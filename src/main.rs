@@ -7,13 +7,15 @@ use std::time::Duration;
 use std::sync::{mpsc, Arc, Mutex};
 use csv::{ReaderBuilder, StringRecord};
 use dotenv::dotenv;
-use postgres::{Connection,TlsMode};
-use retrosheet_loader::datastore::Repository;
+use postgres::TlsMode;
+use retrosheet_loader::datastore::{DBConfig,Repository};
 use retrosheet_loader::datastore::postgres::Postgres;
 use retrosheet_loader::game::{
     Game,
     play::Play,
 };
+use retrosheet_loader::datastore::sqlite::SQLite;
+
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -24,8 +26,11 @@ fn main() {
     }
 
     dotenv().ok();
-    let pg_conn_str = env::var("PG_DATABASE_URL")
-        .expect("DATABASE_URL must be set");
+    let mysql_conn_url = env::var("MYSQL_DATABASE_URL").expect("MYSQL_DATABASE_URL");
+    let pg_conn_url = env::var("PG_DATABASE_URL").expect("PG_DATABASE_URL must be set");
+    let sqlite_conn_url = env::var("SQLITE_DATABASE_URL").expect("SQLITE_DATABASE_URL must be set");
+    let db_config = DBConfig::new(mysql_conn_url.clone(), pg_conn_url.clone(), sqlite_conn_url.clone());
+
     // an array of file paths to parse, currently only accepting a single path
     // soon you'll be able to process more than one file, perhaps comma delimited
     // paths, globs, or by directory. I'm not sure yet
@@ -45,7 +50,7 @@ fn main() {
 
     // the store_game function is on its own thread listening for Game objects being sent to
     // it from the parser function
-    let _ = store_game(Arc::new(Mutex::new(parser_rx)), pg_conn_str.clone()).join();
+    let _ = store_game(Arc::new(Mutex::new(parser_rx)), db_config ).join();
 }
 
 fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
@@ -104,17 +109,51 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
     });
 }
 
-fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>, pg_conn_str: String) -> thread::JoinHandle<()> {
+fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>, db_config: DBConfig) -> thread::JoinHandle<()> {
     thread::spawn(move || {
-        let pg_conn = Connection::connect(pg_conn_str, TlsMode::None).unwrap();
+        let dbc = db_config.clone();
+        let pg_conn = postgres::Connection::connect(dbc.clone().get_pg_url(),
+        TlsMode::None).unwrap_or_else(|err| {
+            eprintln!("postgres connection error : {}", err);
+            std::process::exit(exitcode::IOERR);
+        });
         let pg_repo = Postgres::new(pg_conn);
+
+        let sqlite_conn = sqlite::open(dbc.clone().get_sqlite_url()).unwrap_or_else(|err| {
+            eprintln!("sqlite connection error: {}", err);
+            std::process::exit(exitcode::IOERR);
+        });
+        let sqlite_repo = SQLite::new(sqlite_conn);
 
         for g in rx.lock().unwrap().iter() {
             match pg_repo.save_game(g.clone()) {
                     Err(e) => eprintln!("{}",e),
                     Ok(_) => println!("do something here, like update a progress bar"),
-                }
+            }
 
+            match sqlite_repo.save_game(g.clone()) {
+                Err(e) => eprintln!("{}",e),
+                Ok(_) => println!("do something here, like update a progress bar"),
+            }
+
+        }
+    })
+}
+
+fn store_game_in_postgres(rx: Arc<Mutex<mpsc::Receiver<Game>>>, conn_url: String) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        let pg_conn = postgres::Connection::connect(conn_url,
+                                                    TlsMode::None).unwrap_or_else(|err| {
+            eprintln!("postgres connection error : {}", err);
+            std::process::exit(exitcode::IOERR);
+        });
+        let pg_repo = Postgres::new(pg_conn);
+
+        for g in rx.lock().unwrap().iter() {
+            match pg_repo.save_game(g.clone()) {
+                Err(e) => eprintln!("{}",e),
+                Ok(_) => println!("do something here, like update a progress bar"),
+            }
         }
     })
 }
