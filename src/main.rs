@@ -29,7 +29,6 @@ fn main() {
     let mysql_conn_url = env::var("MYSQL_DATABASE_URL").expect("MYSQL_DATABASE_URL");
     let pg_conn_url = env::var("PG_DATABASE_URL").expect("PG_DATABASE_URL must be set");
     let sqlite_conn_url = env::var("SQLITE_DATABASE_URL").expect("SQLITE_DATABASE_URL must be set");
-    let db_config = DBConfig::new(mysql_conn_url.clone(), pg_conn_url.clone(), sqlite_conn_url.clone());
 
     // an array of file paths to parse, currently only accepting a single path
     // soon you'll be able to process more than one file, perhaps comma delimited
@@ -50,7 +49,7 @@ fn main() {
 
     // the store_game function is on its own thread listening for Game objects being sent to
     // it from the parser function
-    let _ = store_game(Arc::new(Mutex::new(parser_rx)), db_config ).join();
+    let _ = store_game(Arc::new(Mutex::new(parser_rx)), mysql_conn_url, pg_conn_url, sqlite_conn_url ).join();
 }
 
 fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
@@ -103,32 +102,37 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
 
         let send_err = dbtx.send(retro_game.clone());
         if let Err(e) = send_err {
-            eprintln!("ERROR: {:?}", e);
+            eprintln!("ERROR sqlite: {:?}", e);
         }
         drop(dbtx);
     });
 }
 
-fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>, db_config: DBConfig) -> thread::JoinHandle<()> {
-    thread::spawn(move || {
-        let dbc = db_config.clone();
-        let pg_conn = postgres::Connection::connect(dbc.clone().get_pg_url(),
-        TlsMode::None).unwrap_or_else(|err| {
-            eprintln!("postgres connection error : {}", err);
-            std::process::exit(exitcode::IOERR);
-        });
-        let pg_repo = Postgres::new(pg_conn);
 
-        let sqlite_conn = sqlite::open(dbc.clone().get_sqlite_url()).unwrap_or_else(|err| {
+fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>, mysql_conn_url: String, pg_conn_url: String, sqlite_conn_url: String) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        let sqlite_conn = sqlite::open(sqlite_conn_url).unwrap_or_else(|err| {
             eprintln!("sqlite connection error: {}", err);
             std::process::exit(exitcode::IOERR);
         });
         let sqlite_repo = SQLite::new(sqlite_conn);
 
+        let pg_conn = postgres::Connection::connect(pg_conn_url,
+                                                    TlsMode::None).unwrap_or_else(|err| {
+            eprintln!("postgres connection error : {}", err);
+            std::process::exit(exitcode::IOERR);
+        });
+        let pg_repo = Postgres::new(pg_conn);
+
+//        let mysql_conn = Pool::new(connection_info).unwrap_or_else(|err| {
+//            eprintln!("ERROR: {}", err);
+//            std::process::exit(exitcode::IOERR);
+//        });
+
         for g in rx.lock().unwrap().iter() {
             match pg_repo.save_game(g.clone()) {
-                    Err(e) => eprintln!("{}",e),
-                    Ok(_) => println!("do something here, like update a progress bar"),
+                Err(e) => eprintln!("{}",e),
+                Ok(_) => println!("do something here, like update a progress bar"),
             }
 
             match sqlite_repo.save_game(g.clone()) {
@@ -136,24 +140,6 @@ fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>, db_config: DBConfig) -> thre
                 Ok(_) => println!("do something here, like update a progress bar"),
             }
 
-        }
-    })
-}
-
-fn store_game_in_postgres(rx: Arc<Mutex<mpsc::Receiver<Game>>>, conn_url: String) -> thread::JoinHandle<()> {
-    thread::spawn(move || {
-        let pg_conn = postgres::Connection::connect(conn_url,
-                                                    TlsMode::None).unwrap_or_else(|err| {
-            eprintln!("postgres connection error : {}", err);
-            std::process::exit(exitcode::IOERR);
-        });
-        let pg_repo = Postgres::new(pg_conn);
-
-        for g in rx.lock().unwrap().iter() {
-            match pg_repo.save_game(g.clone()) {
-                Err(e) => eprintln!("{}",e),
-                Ok(_) => println!("do something here, like update a progress bar"),
-            }
         }
     })
 }
