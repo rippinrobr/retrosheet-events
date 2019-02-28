@@ -1,19 +1,16 @@
 use std::env;
 use std::fs::File;
 use std::io::BufReader;
-use std::io::prelude::*;
 use std::thread;
-use std::time::Duration;
 use std::sync::{mpsc, Arc, Mutex};
-use csv::{ReaderBuilder, StringRecord};
+use csv::ReaderBuilder;
 use dotenv::dotenv;
+use mysql::Pool;
 use postgres::TlsMode;
-use retrosheet_loader::datastore::{DBConfig,Repository};
+use retrosheet_loader::datastore::Repository;
+use retrosheet_loader::datastore::mysql::MySQL;
 use retrosheet_loader::datastore::postgres::Postgres;
-use retrosheet_loader::game::{
-    Game,
-    play::Play,
-};
+use retrosheet_loader::game::Game;
 use retrosheet_loader::datastore::sqlite::SQLite;
 
 
@@ -124,12 +121,19 @@ fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>, mysql_conn_url: String, pg_c
         });
         let pg_repo = Postgres::new(pg_conn);
 
-//        let mysql_conn = Pool::new(connection_info).unwrap_or_else(|err| {
-//            eprintln!("ERROR: {}", err);
-//            std::process::exit(exitcode::IOERR);
-//        });
+        let mysql_conn = Pool::new(mysql_conn_url).unwrap_or_else(|err| {
+            eprintln!("ERROR: {}", err);
+            std::process::exit(exitcode::IOERR);
+        });
+        let mysql_repo = MySQL::new(mysql_conn);
 
         for g in rx.lock().unwrap().iter() {
+
+            match mysql_repo.save_game(g.clone()) {
+                Err(e) => eprintln!("{}",e),
+                Ok(_) => println!("do something here, like update a progress bar"),
+            }
+
             match pg_repo.save_game(g.clone()) {
                 Err(e) => eprintln!("{}",e),
                 Ok(_) => println!("do something here, like update a progress bar"),
