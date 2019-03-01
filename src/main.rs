@@ -130,17 +130,17 @@ fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>, mysql_conn_url: String, pg_c
         for g in rx.lock().unwrap().iter() {
 
             match mysql_repo.save_game(g.clone()) {
-                Err(e) => eprintln!("{}",e),
+                Err(e) => eprintln!("mysql {}",e),
                 Ok(_) => println!("do something here, like update a progress bar"),
             }
 
             match pg_repo.save_game(g.clone()) {
-                Err(e) => eprintln!("{}",e),
+                Err(e) => eprintln!("postgres {}",e),
                 Ok(_) => println!("do something here, like update a progress bar"),
             }
 
             match sqlite_repo.save_game(g.clone()) {
-                Err(e) => eprintln!("{}",e),
+                Err(e) => eprintln!("sqlite {}",e),
                 Ok(_) => println!("do something here, like update a progress bar"),
             }
 
