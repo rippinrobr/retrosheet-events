@@ -5,6 +5,7 @@ use std::thread;
 use std::sync::{mpsc, Arc, Mutex};
 use csv::ReaderBuilder;
 use dotenv::dotenv;
+use glob::glob;
 use mysql::Pool;
 use postgres::TlsMode;
 use retrosheet_loader::datastore::Repository;
@@ -17,8 +18,8 @@ use retrosheet_loader::datastore::sqlite::SQLite;
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     // need to have at least one file
-    if args.len() < 2 {
-        eprintln!("path to Retrosheet event file is missing");
+    if args.len() < 3 {
+        eprintln!("usage: ./retrosheet-loader regular|post|asg season");
         std::process::exit(1);
     }
 
@@ -26,7 +27,32 @@ fn main() {
     let mysql_conn_url = env::var("MYSQL_DATABASE_URL").expect("MYSQL_DATABASE_URL");
     let pg_conn_url = env::var("PG_DATABASE_URL").expect("PG_DATABASE_URL must be set");
     let sqlite_conn_url = env::var("SQLITE_DATABASE_URL").expect("SQLITE_DATABASE_URL must be set");
+    
+    let allstar_game_events_dir = env::var("ALLSTAR_GAME_EVENTS").expect("ALLSTAR_GAME_EVENTS must be set.");
+    let post_season_events_dir = env::var("POST_SEASON_EVENTS").expect("POST_SEASON_EVENTS must be set.");
+    let regular_season_events_dir = env::var("REGULAR_SEASON_EVENTS").expect("REGULAR_SEASON_EVENTS must be set.");
 
+    let file_path = match args[1].as_str() {
+        "regular" => regular_season_events_dir,
+        "post"=> post_season_events_dir,
+        "asg" => allstar_game_events_dir,
+        _ => String::from("")
+    };
+
+    //println!("all star game events: {}", allstar_game_events_dir);
+    //println!("regular season events: {}", regular_season_events_dir);
+    //println!("post season events: {}", post_season_events_dir);
+
+    println!("{}/{}*.*", file_path, args[2]);
+    let glob_str = &format!("{}/{}*.*", file_path, args[2]);
+    for file in glob(glob_str).expect("you are under age, go to bed") {
+        match file {
+            Ok(path) => println!("{:?}", path.display()),
+            Err(e) => println!("{:?}", e),
+        }
+    }
+
+/*
     // an array of file paths to parse, currently only accepting a single path
     // soon you'll be able to process more than one file, perhaps comma delimited
     // paths, globs, or by directory. I'm not sure yet
@@ -47,6 +73,7 @@ fn main() {
     // the store_game function is on its own thread listening for Game objects being sent to
     // it from the parser function
     let _ = store_game(Arc::new(Mutex::new(parser_rx)), mysql_conn_url, pg_conn_url, sqlite_conn_url ).join();
+    */
 }
 
 fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
