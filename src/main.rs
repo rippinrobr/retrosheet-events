@@ -43,28 +43,19 @@ fn main() {
     //println!("regular season events: {}", regular_season_events_dir);
     //println!("post season events: {}", post_season_events_dir);
 
-    println!("{}/{}*.*", file_path, args[2]);
-    let glob_str = &format!("{}/{}*.*", file_path, args[2]);
-    for file in glob(glob_str).expect("you are under age, go to bed") {
-        match file {
-            Ok(path) => println!("{:?}", path.display()),
-            Err(e) => println!("{:?}", e),
-        }
-    }
-
-/*
-    // an array of file paths to parse, currently only accepting a single path
-    // soon you'll be able to process more than one file, perhaps comma delimited
-    // paths, globs, or by directory. I'm not sure yet
-    // let files = vec![args[1].clone()];
-    let files = args[1].split(',');
+    // println!("{}/{}*.*", file_path, args[2]);
     // Sets up the channels that are used for sending parsed Game objects to from
     // the parser to the function responsible for storing the data in a database
     let (parser_tx, parser_rx) = mpsc::channel();
-    // loops over the paths provided and sends them to the parser function, each
-    // file being parsed will have its own thread.
-    for file in files.clone() {
-        parser(file.to_string(), parser_tx.clone());
+
+    let glob_str = &format!("{}/{}*.*", file_path, args[2]);
+    // loops over any files that match the glob and sends them to the parser function, each
+    // file will be parsed on its own thread
+    for file in glob(glob_str).expect("you are under age, go to bed") {
+        match file {
+            Ok(path) => parser(path.into_os_string().into_string().unwrap(), parser_tx.clone()),
+            Err(e) => eprintln!("{:?}", e),
+        }
     }
     // when I'm done parsing all of the files I can close the channel that is used by the parser
     // to send games to the store_game thread
@@ -73,7 +64,6 @@ fn main() {
     // the store_game function is on its own thread listening for Game objects being sent to
     // it from the parser function
     let _ = store_game(Arc::new(Mutex::new(parser_rx)), mysql_conn_url, pg_conn_url, sqlite_conn_url ).join();
-    */
 }
 
 fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
@@ -104,6 +94,7 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
                         retro_game.set_default_info();
                     }
                     retro_game.id = record[1].to_string();
+                    retro_game.season = String::from(&record[1][3..7]).parse().unwrap_or_default();
                 },
                 "info" => retro_game.add_info(record[1].to_string(), record[2].to_string() ),
                 "start" => retro_game.add_starter(record),
@@ -158,17 +149,17 @@ fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>, mysql_conn_url: String, pg_c
 
             match mysql_repo.save_game(g.clone()) {
                 Err(e) => eprintln!("mysql {}",e),
-                Ok(_) => println!("do something here, like update a progress bar"),
+                Ok(_) => (), //println!("do something here, like update a progress bar"),
             }
 
             match pg_repo.save_game(g.clone()) {
                 Err(e) => eprintln!("postgres {}",e),
-                Ok(_) => println!("do something here, like update a progress bar"),
+                Ok(_) => (), //println!("do something here, like update a progress bar"),
             }
 
             match sqlite_repo.save_game(g.clone()) {
                 Err(e) => eprintln!("sqlite {}",e),
-                Ok(_) => println!("do something here, like update a progress bar"),
+                Ok(_) => (), //println!("do something here, like update a progress bar"),
             }
 
         }
