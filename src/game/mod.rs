@@ -17,6 +17,7 @@ use crate::game::sub::Sub;
 #[derive(Clone, Debug,Default)]
 pub struct Game {
     pub id: String,
+    pub season: i32,
     pub info: HashMap<String, String>,
     pub starters: Vec<Starter>,
     pub plays: Vec<Play>,
@@ -81,4 +82,5 @@ impl Game {
         &self.info.insert(String::from("scorer"), String::new());
         &self.info.insert(String::from("translator"), String::new());
     }
+
 }

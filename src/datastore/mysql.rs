@@ -52,17 +52,17 @@ impl MySQL {
     /// the info Hashmap
     ///
     /// returns the number of records added or a DBError::InsertError
-    fn insert_game_info(&self, transaction: &mut Transaction, game_id: String, info: HashMap<String, String>)  -> Result<u64, DBError> {
-        let insert_stmt = &format!("INSERT INTO games (game_id, visteam, hometeam, game_date, number, starttime, daynight, usedh, pitches, umphome, ump1b, \
+    fn insert_game_info(&self, transaction: &mut Transaction, game_id: String, season: i32, info: HashMap<String, String>)  -> Result<u64, DBError> {
+        let insert_stmt = &format!("INSERT INTO games (game_id, season, visteam, hometeam, game_date, number, starttime, daynight, usedh, pitches, umphome, ump1b, \
          ump2b, ump3b, umplf, umprf, fieldcond, precip, sky, temp, winddir, windspeed, timeofgame, attendance, \
          site, wp, lp, save, gwrbi, edittime, howscored, inputprogvers, inputter, inputtime, scorer, translator) VALUES ( \
-         '{}', '{}', '{}', '{}', {}, '{}', \
+         '{}', {}, '{}', '{}', '{}', {}, '{}', \
          '{}', {}, '{}', '{}', '{}', '{}', \
          '{}', '{}', '{}', '{}', '{}', '{}',\
           {}, '{}', {}, {}, {}, \
           '{}', '{}', '{}', '{}', '{}', '{}', \
           '{}', '{}', '{}', '{}', '{}', '{}');",
-          &game_id, &info["visteam"],&info["hometeam"], &info["date"], &info["number"], &info["starttime"],
+          &game_id, season, &info["visteam"],&info["hometeam"], &info["date"], &info["number"], &info["starttime"],
           &info["daynight"], &info["usedh"], &info["pitches"], cleanse_name(info["umphome"].clone()),
            cleanse_name(info["ump1b"].clone()),
            cleanse_name(info["ump2b"].clone()), cleanse_name(info["ump3b"].clone()), cleanse_name(info["umplf"].clone()),
@@ -133,7 +133,7 @@ impl Repository for MySQL {
 
         // create the first entry for this game in the database, bails if there's an
         // error
-        match self.insert_game_info(&mut trans, game.id.clone(), game.info) {
+        match self.insert_game_info(&mut trans, game.id.clone(), game.season, game.info) {
             Err(e) => {
                 trans.rollback().unwrap();
                 return Err(e)
