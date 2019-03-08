@@ -9,7 +9,7 @@ use crate::game::com::Com;
 use crate::game::earned_run_entry::EarnedRunEntry;
 use crate::game::play::Play;
 use crate::game::sub::Sub;
-use super::cleanse_name;
+use super::{cleanse_name, swap_unknown_for_numeric_cols};
 
 /// Manages interactions with a Postgres database
 pub struct SQLite{
@@ -68,9 +68,10 @@ impl SQLite {
            cleanse_name(info["ump1b"].clone()),
            cleanse_name(info["ump2b"].clone()), cleanse_name(info["ump3b"].clone()), cleanse_name(info["umplf"].clone()),
            cleanse_name(info["umprf"].clone()), &info["fieldcond"], &info["precip"], &info["sky"],
-          &info["temp"], &info["winddir"], &info["windspeed"], &info["timeofgame"], &info["attendance"],
+           swap_unknown_for_numeric_cols(info["temp"].to_string()), &info["winddir"],
+           swap_unknown_for_numeric_cols(info["windspeed"].to_string()), &info["timeofgame"], &info["attendance"],
           &info["site"], &info["wp"], &info["lp"], &info["save"], &info["gwrbi"], &info["edittime"],
-          &info["howscored"], &info["inputprogvers"], &info["inputter"], &info["inputtime"], &info["scorer"], &info["translator"]);
+          &info["howscored"], &info["inputprogvers"], cleanse_name(info["inputter"].clone()), &info["inputtime"], cleanse_name(info["scorer"].clone()), cleanse_name(info["translator"].clone()));
 
         match self.conn.execute(insert_stmt) {
             Ok(rows_added) => Ok(1),

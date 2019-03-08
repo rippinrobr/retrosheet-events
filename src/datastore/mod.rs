@@ -31,9 +31,16 @@ pub trait Repository {
     fn save_game(&self, game: Game) -> Result<(), DBError>;
 }
 
-
 fn cleanse_name(name: String) -> String {
     name.replace("'", "''").replace("\"", "")
+}
+
+fn swap_unknown_for_numeric_cols(val: String) -> String {
+    if val.to_lowercase() == String::from("unknown") {
+        return String::from("-1");
+    }
+
+    return val
 }
 
 #[derive(Clone, Debug)]

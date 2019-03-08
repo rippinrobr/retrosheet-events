@@ -15,3 +15,10 @@ impl EarnedRunEntry {
         }
     }
 }
+
+impl PartialEq for EarnedRunEntry {
+    fn eq(&self, other: &EarnedRunEntry) -> bool {
+        return &self.player_id == &other.player_id &&
+                &self.earned_runs_allowed == &other.earned_runs_allowed;
+    }
+}

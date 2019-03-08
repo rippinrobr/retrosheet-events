@@ -32,7 +32,14 @@ impl Game {
     }
 
     pub fn add_earned_run_entry(&mut self, record: StringRecord) {
-        self.data.push(EarnedRunEntry::new(record))
+        let new_data = EarnedRunEntry::new(record);
+        for d in &self.data {
+            if d.eq(&new_data) {
+                println!("[{}-{}] data: {} {} already exists in vector", &self.season, &self.id, d.player_id, d.earned_runs_allowed);
+                return
+            }
+        }
+        self.data.push(new_data)
     }
 
     pub fn add_info(&mut self, prop: String, val: String) {
@@ -66,7 +73,7 @@ impl Game {
         &self.info.insert(String::from("sky"), String::new());
         &self.info.insert(String::from("temp"), String::new());
         &self.info.insert(String::from("winddir"), String::new());
-        &self.info.insert(String::from("windspeed"), String::new());
+        &self.info.insert(String::from("windspeed"), String::from("0"));
         &self.info.insert(String::from("timeofgame"), String::new());
         &self.info.insert(String::from("attendance"), String::new());
         &self.info.insert(String::from("site"), String::new());

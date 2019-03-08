@@ -53,7 +53,13 @@ fn main() {
     // file will be parsed on its own thread
     for file in glob(glob_str).expect("you are under age, go to bed") {
         match file {
-            Ok(path) => parser(path.into_os_string().into_string().unwrap(), parser_tx.clone()),
+            Ok(path) => {
+                let file_path = path.into_os_string().into_string().unwrap();
+                if file_path.ends_with("EBD") {
+                    continue;
+                }
+                parser(file_path, parser_tx.clone())
+            },
             Err(e) => eprintln!("{:?}", e),
         }
     }
@@ -96,7 +102,9 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
                     retro_game.id = record[1].to_string();
                     retro_game.season = String::from(&record[1][3..7]).parse().unwrap_or_default();
                 },
-                "info" => retro_game.add_info(record[1].to_string(), record[2].to_string() ),
+                "info" => {
+                    retro_game.add_info(record[1].to_string(),  record[2].to_string() )
+                },
                 "start" => retro_game.add_starter(record),
                 "play" => {
                     retro_game.add_play(record, game_log_idx);
@@ -148,17 +156,17 @@ fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>, mysql_conn_url: String, pg_c
         for g in rx.lock().unwrap().iter() {
 
             match mysql_repo.save_game(g.clone()) {
-                Err(e) => eprintln!("mysql {}",e),
+                Err(e) => eprintln!("mysql {}\n",e),
                 Ok(_) => (), //println!("do something here, like update a progress bar"),
             }
 
             match pg_repo.save_game(g.clone()) {
-                Err(e) => eprintln!("postgres {}",e),
+                Err(e) => eprintln!("postgres {}\n",e),
                 Ok(_) => (), //println!("do something here, like update a progress bar"),
             }
 
             match sqlite_repo.save_game(g.clone()) {
-                Err(e) => eprintln!("sqlite {}",e),
+                Err(e) => eprintln!("sqlite {}\n",e),
                 Ok(_) => (), //println!("do something here, like update a progress bar"),
             }
 
