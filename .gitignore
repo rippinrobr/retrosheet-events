@@ -2,5 +2,7 @@
 **/*.rs.bk
 .idea/
 out.txt
+errors.txt
+1???_errors.txt
 clippy.txt
 .env
