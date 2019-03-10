@@ -1,6 +1,7 @@
 use std::env;
 use std::fs::File;
 use std::io::BufReader;
+use std::io::{self, Write};
 use std::thread;
 use std::sync::{mpsc, Arc, Mutex};
 use csv::ReaderBuilder;
@@ -39,11 +40,6 @@ fn main() {
         _ => String::from("")
     };
 
-    //println!("all star game events: {}", allstar_game_events_dir);
-    //println!("regular season events: {}", regular_season_events_dir);
-    //println!("post season events: {}", post_season_events_dir);
-
-    // println!("{}/{}*.*", file_path, args[2]);
     // Sets up the channels that are used for sending parsed Game objects to from
     // the parser to the function responsible for storing the data in a database
     let (parser_tx, parser_rx) = mpsc::channel();
@@ -100,6 +96,7 @@ fn parser(file_path: String, dbtx: mpsc::Sender<Game>) {
                         retro_game.set_default_info();
                     }
                     retro_game.id = record[1].to_string();
+                    std::io::stdout().flush().unwrap();
                     retro_game.season = String::from(&record[1][3..7]).parse().unwrap_or_default();
                 },
                 "info" => {
@@ -156,17 +153,29 @@ fn store_game(rx: Arc<Mutex<mpsc::Receiver<Game>>>, mysql_conn_url: String, pg_c
         for g in rx.lock().unwrap().iter() {
 
             match mysql_repo.save_game(g.clone()) {
-                Err(e) => eprintln!("mysql {}\n",e),
+                Err(e) => {
+                    if !format!("{}",e).contains(&mysql_repo.get_duplicate_err_msg()) {
+                        eprintln!("{}", e);
+                    }
+                },
                 Ok(_) => (), //println!("do something here, like update a progress bar"),
             }
 
             match pg_repo.save_game(g.clone()) {
-                Err(e) => eprintln!("postgres {}\n",e),
+                Err(e) => {
+                    if !format!("{}",e).contains(&pg_repo.get_duplicate_err_msg()) {
+                        eprintln!("{}", e);
+                    }
+                },
                 Ok(_) => (), //println!("do something here, like update a progress bar"),
             }
 
             match sqlite_repo.save_game(g.clone()) {
-                Err(e) => eprintln!("sqlite {}\n",e),
+                Err(e) => {
+                    if !format!("{}",e).contains(&sqlite_repo.get_duplicate_err_msg()) {
+                        eprintln!("{}", e);
+                    }
+                },
                 Ok(_) => (), //println!("do something here, like update a progress bar"),
             }
 

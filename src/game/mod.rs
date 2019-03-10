@@ -46,7 +46,9 @@ impl Game {
         self.info.insert(prop, val);
     }
 
-    pub fn add_play(&mut self, record: StringRecord, idx: u16) { self.plays.push( Play::new(idx, record)); }
+    pub fn add_play(&mut self, record: StringRecord, idx: u16) {
+        self.plays.push( Play::new(idx, record));
+    }
 
     pub fn add_starter(&mut self, record: StringRecord) {
         self.starters.push(Starter::new(record))
@@ -60,7 +62,7 @@ impl Game {
         &self.info.insert(String::from("number"), String::new());
         &self.info.insert(String::from("starttime"), String::new());
         &self.info.insert(String::from("daynight"), String::new());
-        &self.info.insert(String::from("usedh"), String::new());
+        &self.info.insert(String::from("usedh"), String::from("false"));
         &self.info.insert(String::from("pitches"), String::new());
         &self.info.insert(String::from("umphome"), String::new());
         &self.info.insert(String::from("ump1b"), String::new());
@@ -71,7 +73,7 @@ impl Game {
         &self.info.insert(String::from("fieldcond"), String::new());
         &self.info.insert(String::from("precip"), String::new());
         &self.info.insert(String::from("sky"), String::new());
-        &self.info.insert(String::from("temp"), String::new());
+        &self.info.insert(String::from("temp"), String::from("0"));
         &self.info.insert(String::from("winddir"), String::new());
         &self.info.insert(String::from("windspeed"), String::from("0"));
         &self.info.insert(String::from("timeofgame"), String::new());

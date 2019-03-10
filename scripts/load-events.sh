@@ -1,11 +1,14 @@
 #!/bin/bash
 
 error_file="./errors.txt"
+export RUST_BACKTRACE=1
 
 cd ..
-for season in {1970,1969}; do 
+#season=9999
+for season in {1957,1947}; do 
     echo "Loading events for $season regular season.."
     elapsed_time=`time ./target/release/retrosheet-loader regular $season 2>>errors.txt`
+    #elapsed_time=`time ./target/debug/retrosheet-loader regular $season 2>>errors.txt`
     echo "$elapsed_time"
 
     if [ -s $error_file ]

@@ -14,13 +14,17 @@ use super::{cleanse_name, swap_unknown_for_numeric_cols};
 /// Manages interactions with a Postgres database
 pub struct SQLite{
     conn: Connection,
+    duplicate_err_msg: String,
 }
 
 impl SQLite {
     /// returns an instance of the SQLite which is is used to interact with a SQLite
     /// database
     pub fn new(conn: Connection) -> Self {
-        Self { conn }
+        Self {
+            conn,
+            duplicate_err_msg: String::from("UNIQUE constraint failed"),
+        }
     }
 
     fn insert_coms(&self, game_id: String, coms: Vec<Com>) -> Result<u64, DBError> {
@@ -29,7 +33,14 @@ impl SQLite {
             let insert_stmt = &format!("INSERT INTO coms (game_id, idx, description) VALUES ('{}', {}, '{}')",
                                        &game_id, com.idx, com.description.replace("'", "''"));
             if let Err(e) = self.conn.execute(insert_stmt) {
-                return Err(InsertError {message : format!("insert_coms: {}", e)});
+                if !format!("{}",e).contains(&self.duplicate_err_msg) {
+                    return Err(InsertError {
+                        db_type: String::from("[SQLITE]"),
+                        message: format!("insert_coms: {}", e)
+                    });
+                }
+                println!("duplicate key message: {}", e);
+
             }
         }
 
@@ -42,7 +53,13 @@ impl SQLite {
             let insert_stmt = &format!("INSERT INTO data (game_id, player_id, er) VALUES ('{}', '{}', {})",
                                        &game_id, d.player_id, d.earned_runs_allowed);
             if let Err(e) = self.conn.execute(insert_stmt) {
-                return Err(InsertError {message : format!("insert_data: {}", e)});
+                if !format!("{}",e).contains(&self.duplicate_err_msg) {
+                    return Err(InsertError {
+                        db_type: String::from("[SQLITE]"),
+                        message : format!("insert_data: {}", e)});
+                }
+                println!("duplicate key message: insert_data: {}", e);
+
             }
         }
 
@@ -71,13 +88,15 @@ impl SQLite {
            swap_unknown_for_numeric_cols(info["temp"].to_string()), &info["winddir"],
            swap_unknown_for_numeric_cols(info["windspeed"].to_string()), &info["timeofgame"], &info["attendance"],
           &info["site"], &info["wp"], &info["lp"], &info["save"], &info["gwrbi"], &info["edittime"],
-          &info["howscored"], &info["inputprogvers"], cleanse_name(info["inputter"].clone()), &info["inputtime"], cleanse_name(info["scorer"].clone()), cleanse_name(info["translator"].clone()));
+          &info["howscored"], &info["inputprogvers"], cleanse_name(info["inputter"].clone()), &info["inputtime"],
+           cleanse_name(info["scorer"].clone()), cleanse_name(info["translator"].clone()));
 
         match self.conn.execute(insert_stmt) {
             Ok(rows_added) => Ok(1),
             Err(e) => {
-                eprintln!("postgres: insert statement: {}", insert_stmt);
-                Err(InsertError{message: format!("insert_game_info: {}", e)})
+                return Err(InsertError {
+                        db_type: String::from("[SQLITE]"),
+                        message : format!("insert_game_info: ({}) {}", &game_id, e)});
             }
         }
     }
@@ -89,13 +108,18 @@ impl SQLite {
                 VALUES ('{}', {}, {}, '{}', '{}', '{}', '{}', '{}')", &game_id, p.idx, p.inning, p.team,
                 p.player_id, p.count, p.pitches, p.event);
             if let Err(e) = self.conn.execute(insert_stmt) {
-                return Err(InsertError {message : format!("insert_plays: {}", e)});
+                if !format!("{}",e).contains(&self.duplicate_err_msg) {
+                    return Err(InsertError {
+                        db_type: String::from("[SQLITE]"),
+                        message : format!("insert_plays: ({}) {}", &game_id, e)});
+                }
+                println!("duplicate key message: insert_plays: {}", e);
+
             }
         }
 
         Ok(total)
     }
-
 
     fn insert_starters(&self, game_id: String, starters: Vec<Starter>) -> Result<u64, DBError> {
         let total_starters = starters.len();
@@ -105,7 +129,13 @@ impl SQLite {
                    starter.player_id, cleanse_name(starter.name), starter.team, starter.batting_order, starter.position);
 
             if let Err(e) = self.conn.execute(insert_stmt) {
-               return Err(InsertError {message : format!("{}", e)});
+                if !format!("{}",e).contains(&self.duplicate_err_msg) {
+                    return Err(InsertError {
+                        db_type: String::from("[SQLITE]"),
+                        message : format!("insert_starters: ({}) {}",&game_id, e)});
+                }
+                println!("duplicate key message: insert_starters: {}", e);
+
             }
         }
 
@@ -120,13 +150,21 @@ impl SQLite {
                &game_id, s.idx, s.player_id, cleanse_name(s.name), s.team, s.batting_order, s.position);
 
             if let Err(e) = self.conn.execute(insert_stmt) {
-                return Err(InsertError {message : format!("{}", e)});
+                if !format!("{}",e).contains(&self.duplicate_err_msg) {
+                    return Err(InsertError {
+                        db_type: String::from("[SQLITE]"),
+                        message : format!("insert_subs: ({}) {}", &game_id, e)});
+                }
+                println!("duplicate key message: insert_subs: {}", e);
             }
         }
 
         Ok(total)
     }
 
+    pub fn get_duplicate_err_msg(&self) -> String {
+        return self.duplicate_err_msg.clone()
+    }
 }
 
 impl Repository for SQLite {
@@ -134,12 +172,16 @@ impl Repository for SQLite {
         // create the first entry for this game in the database, bails if there's an
         // error
         match self.insert_game_info(game.id.clone(), game.season, game.info) {
-            Err(e) => return Err(e),
+            Err(e) => {
+                return Err(e)
+            }
             _ => ()
         };
 
         match self.insert_starters(game.id.clone(), game.starters) {
-            Err(e) => return Err(e),
+            Err(e) => {
+                return Err(e)
+            }
             _ => ()
         }
 

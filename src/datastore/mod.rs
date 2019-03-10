@@ -16,21 +16,21 @@ use crate::datastore::DBError::{GeneralError, InsertError};
      #[fail(display = "db error: {}", message)]
      GeneralError { message: String },
 
-     #[fail(display = "db error: {}", message)]
+     #[fail(display = "{} insert error: {}", db_type, message)]
      InsertError
      {
+         db_type: String,
          message: String,
-// //        backtrace: Backtrace,
-// //        #[cause]
-// //        cause: std::error::Error,
      }
 }
-
 
 pub trait Repository {
     fn save_game(&self, game: Game) -> Result<(), DBError>;
 }
 
+fn cleanse_date(date_str: String) -> String {
+    date_str.replace("/", "-")
+}
 fn cleanse_name(name: String) -> String {
     name.replace("'", "''").replace("\"", "")
 }
@@ -38,6 +38,10 @@ fn cleanse_name(name: String) -> String {
 fn swap_unknown_for_numeric_cols(val: String) -> String {
     if val.to_lowercase() == String::from("unknown") {
         return String::from("-1");
+    }
+
+    if val == "" {
+        return String::from("0");
     }
 
     return val

@@ -13,13 +13,17 @@ use super::{cleanse_name, swap_unknown_for_numeric_cols};
 /// Manages interactions with a MySQL database
 pub struct MySQL{
     conn: Pool,
+    duplicate_err_msg: String,
 }
 
 impl MySQL {
     /// returns an instance of the MySQLStore which is is used to interact with a MySQL
     /// database server
     pub fn new(conn: Pool) -> Self {
-        Self { conn }
+        Self {
+            conn,
+            duplicate_err_msg: String::from("UNIQUE constraint failed"),
+        }
     }
 
     fn insert_coms(&self, transaction: &mut Transaction, game_id: String, coms: Vec<Com>) -> Result<u64, DBError> {
@@ -28,7 +32,12 @@ impl MySQL {
             let insert_stmt = &format!("INSERT INTO coms (game_id, idx, description) VALUES ('{}', {}, '{}')",
                                        &game_id, com.idx, com.description.replace("'", "''"));
             if let Err(e) = transaction.prep_exec(insert_stmt, ()) {
-                return Err(InsertError {message : format!("insert_coms: {}", e)});
+                if !format!("{}",e).contains(&self.duplicate_err_msg) {
+                    return Err(InsertError {
+                        db_type: String::from("[MYSQL]"),
+                        message : format!("insert_coms: ({}) {}",&game_id, e)});
+                }
+                println!("duplicate key message: insert_coms: {}", e);
             }
         }
 
@@ -41,7 +50,12 @@ impl MySQL {
             let insert_stmt = &format!("INSERT INTO data (game_id, player_id, er) VALUES ('{}', '{}', {})",
                                        &game_id, d.player_id, d.earned_runs_allowed);
             if let Err(e) = transaction.prep_exec(insert_stmt, ()) {
-                return Err(InsertError {message : format!("insert_data: {}", e)});
+                if !format!("{}",e).contains(&self.duplicate_err_msg) {
+                    return Err(InsertError {
+                        db_type: String::from("[MYSQL]"),
+                        message : format!("insert_data: ({}) {}",&game_id, e)});
+                }
+                println!("duplicate key message: insert_data: {}", e);
             }
         }
 
@@ -76,8 +90,9 @@ impl MySQL {
         match transaction.prep_exec(insert_stmt, ()) {
             Ok(rows_added) => Ok(rows_added.affected_rows()),
             Err(e) => {
-                eprintln!("MySQL: insert statement: {}", insert_stmt);
-                Err(InsertError{message: format!("insert_game_info: {}", e)})
+                return Err(InsertError {
+                        db_type: String::from("[MYSQL]"),
+                        message : format!("insert_game_info: ({}) {}\n---{}\n---",&game_id, e, insert_stmt)});
             }
         }
     }
@@ -89,7 +104,12 @@ impl MySQL {
                 VALUES ('{}', {}, {}, '{}', '{}', '{}', '{}', '{}')", &game_id, p.idx, p.inning, p.team,
                 p.player_id, p.count, p.pitches, p.event);
             if let Err(e) = transaction.prep_exec(insert_stmt, ()) {
-                return Err(InsertError {message : format!("insert_plays: {}", e)});
+                if !format!("{}",e).contains(&self.duplicate_err_msg) {
+                    return Err(InsertError {
+                        db_type: String::from("[MYSQL]"),
+                        message : format!("insert_plays: ({}) {}",&game_id, e)});
+                }
+                println!("duplicate key message: insert_plays: {}", e);
             }
         }
 
@@ -105,7 +125,12 @@ impl MySQL {
                    starter.player_id, cleanse_name(starter.name), starter.team, starter.batting_order, starter.position);
 
             if let Err(e) = transaction.prep_exec(insert_stmt, ()) {
-               return Err(InsertError {message : format!("{}", e)});
+                if !format!("{}",e).contains(&self.duplicate_err_msg) {
+                    return Err(InsertError {
+                        db_type: String::from("[MYSQL]"),
+                        message : format!("insert_starters: ({}) {}",&game_id, e)});
+                }
+                println!("duplicate key message: insert_starters: {}", e);
             }
         }
 
@@ -120,13 +145,21 @@ impl MySQL {
                &game_id, s.idx, s.player_id, cleanse_name(s.name), s.team, s.batting_order, s.position);
 
             if let Err(e) = transaction.prep_exec(insert_stmt, ()) {
-                return Err(InsertError {message : format!("{}", e)});
+                if !format!("{}",e).contains(&self.duplicate_err_msg) {
+                    return Err(InsertError {
+                        db_type: String::from("[MYSQL]"),
+                        message : format!("insert_subs: ({}) {}",&game_id, e)});
+                }
+                println!("duplicate key message: insert_subs: {}", e);
             }
         }
 
         Ok(total)
     }
 
+    pub fn get_duplicate_err_msg(&self) -> String {
+        return self.duplicate_err_msg.clone()
+    }
 }
 
 impl Repository for MySQL {
