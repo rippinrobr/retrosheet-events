@@ -82,7 +82,8 @@ impl MySQL {
            cleanse_name(info["ump2b"].clone()), cleanse_name(info["ump3b"].clone()), cleanse_name(info["umplf"].clone()),
            cleanse_name(info["umprf"].clone()), &info["fieldcond"], &info["precip"], &info["sky"],
            swap_unknown_for_numeric_cols(info["temp"].clone()), &info["winddir"],
-           swap_unknown_for_numeric_cols(info["windspeed"].clone()), &info["timeofgame"], &info["attendance"],
+           swap_unknown_for_numeric_cols(info["windspeed"].clone()), &info["timeofgame"],
+           swap_unknown_for_numeric_cols(info["attendance"].clone()),
           &info["site"], &info["wp"], &info["lp"], &info["save"], &info["gwrbi"], &info["edittime"],
           &info["howscored"], &info["inputprogvers"], cleanse_name(info["inputter"].clone()), &info["inputtime"],
            cleanse_name(info["scorer"].clone()), cleanse_name(info["translator"].clone()));
@@ -92,7 +93,7 @@ impl MySQL {
             Err(e) => {
                 return Err(InsertError {
                         db_type: String::from("[MYSQL]"),
-                        message : format!("insert_game_info: ({}) {}\n---{}\n---",&game_id, e, insert_stmt)});
+                        message : format!("insert_game_info: ({}) {}",&game_id, e)});
             }
         }
     }

@@ -86,7 +86,8 @@ impl SQLite {
            cleanse_name(info["ump2b"].clone()), cleanse_name(info["ump3b"].clone()), cleanse_name(info["umplf"].clone()),
            cleanse_name(info["umprf"].clone()), &info["fieldcond"], &info["precip"], &info["sky"],
            swap_unknown_for_numeric_cols(info["temp"].to_string()), &info["winddir"],
-           swap_unknown_for_numeric_cols(info["windspeed"].to_string()), &info["timeofgame"], &info["attendance"],
+           swap_unknown_for_numeric_cols(info["windspeed"].to_string()), &info["timeofgame"],
+           swap_unknown_for_numeric_cols(info["attendance"].to_string()),
           &info["site"], &info["wp"], &info["lp"], &info["save"], &info["gwrbi"], &info["edittime"],
           &info["howscored"], &info["inputprogvers"], cleanse_name(info["inputter"].clone()), &info["inputtime"],
            cleanse_name(info["scorer"].clone()), cleanse_name(info["translator"].clone()));

@@ -36,15 +36,16 @@ fn cleanse_name(name: String) -> String {
 }
 
 fn swap_unknown_for_numeric_cols(val: String) -> String {
-    if val.to_lowercase() == String::from("unknown") {
+    let trimmed_val = val.trim().to_string();
+    if trimmed_val.to_lowercase() == String::from("unknown") {
         return String::from("-1");
     }
 
-    if val == "" {
-        return String::from("0");
+    if trimmed_val == "" || trimmed_val.len() == 0 {
+        return "0".to_string();
     }
 
-    return val
+    return trimmed_val.clone()
 }
 
 #[derive(Clone, Debug)]

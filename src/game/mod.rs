@@ -76,8 +76,8 @@ impl Game {
         &self.info.insert(String::from("temp"), String::from("0"));
         &self.info.insert(String::from("winddir"), String::new());
         &self.info.insert(String::from("windspeed"), String::from("0"));
-        &self.info.insert(String::from("timeofgame"), String::new());
-        &self.info.insert(String::from("attendance"), String::new());
+        &self.info.insert(String::from("timeofgame"), String::from("0"));
+        &self.info.insert(String::from("attendance"), String::from("0"));
         &self.info.insert(String::from("site"), String::new());
         &self.info.insert(String::from("wp"), String::new());
         &self.info.insert(String::from("lp"), String::new());

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-for season in {9999,1963}; do  
+for season in {1955,1953,1952}; do  
    echo "delete from coms where game_id like '%${season}%';"
    echo "delete from data where game_id like '%${season}%';"
    echo "delete from plays where game_id like '%${season}%';"

@@ -14,4 +14,5 @@ failure_derive = "0.1.5"
 glob = "0.2"
 mysql = "15.1.0"
 postgres = { version = "0.15.2", features= ["with-time"] }
+regex = "1.1.2"
 sqlite = "0.24.0"
