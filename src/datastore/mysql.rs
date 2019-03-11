@@ -22,7 +22,7 @@ impl MySQL {
     pub fn new(conn: Pool) -> Self {
         Self {
             conn,
-            duplicate_err_msg: String::from("UNIQUE constraint failed"),
+            duplicate_err_msg: String::from("Duplicate entry"),
         }
     }
 

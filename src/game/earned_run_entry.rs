@@ -10,7 +10,7 @@ pub struct EarnedRunEntry {
 
 impl EarnedRunEntry {
     pub fn new(record: StringRecord) -> Self {
-        let re = Regex::new(r"[A-Za-z]").unwrap();
+        let re = Regex::new(r"[A-Za-z#]").unwrap();
         let raw_string = &record[3].to_string();
         let er_string = re.replace_all(raw_string.trim(), "");
 

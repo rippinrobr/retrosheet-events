@@ -4,8 +4,8 @@ error_file="./errors.txt"
 export RUST_BACKTRACE=full
 
 cd ..
-season=9999
-#for season in {1947..1935}; do 
+#season=1935
+for season in {1933..1921}; do 
     echo "Loading events for $season regular season.."
     #elapsed_time=`time ./target/release/retrosheet-loader regular $season 2>>errors.txt`
     elapsed_time=`time ./target/debug/retrosheet-loader regular $season 2>>errors.txt`
@@ -18,6 +18,6 @@ season=9999
         cp /dev/null ${error_file}
     fi
     echo ""
-#done
+done
 
 cd scripts
