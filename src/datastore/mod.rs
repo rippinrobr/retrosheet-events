@@ -35,7 +35,7 @@ fn cleanse_name(name: String) -> String {
     name.replace("'", "''").replace("\"", "")
 }
 
-fn swap_unknown_for_numeric_cols(val: String) -> String {
+fn cleanse_numeric_cols(val: String) -> String {
     let trimmed_val = val.trim().to_string();
     if trimmed_val.to_lowercase() == String::from("unknown") {
         return String::from("-1");
